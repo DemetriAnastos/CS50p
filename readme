@@ -1,0 +1,21 @@
+'Kill Team Dice Combat Simulator'
+
+This is a dice rolling simulator inspired by the the Warhammer 40,000 Kill Team tabletop game.
+
+The game is for 2 players, each starting with an HP value of 14. The game will randomly determine which player has the initiative each turn, 'roll' 3 6-sided dice each, and take turns 'striking' or 'blocking' each other's dice, starting with the player who has the initiative that turn.
+
+A dice is determined 'successful' if it is a value of 3 or higher (3, 4, 5, or 6), other dice are discarded. A successful strike will lower the other player's HP by 3, or a successful critical strike (only applicable to dice with a value of 6), will reduce the other player's HP by 4.
+
+'Blocking' a dice allocates any one of the player's successful dice to remove one of the other player's successful dice, but only a critical (again being a dice with a value of 6) can block another critical.
+
+A player whose HP is reduced to half (7 or lower) is to be considered immediately 'wounded' and can then only count dice with a value of 4 or higher as successful, discarding any dice in their current pool as necessary.
+
+Once both players have allocated all available dice, allowing one player to allocated multiple dice consecutively if their opponent has no dice available, if a winner has not been decided, the initiative is randomized again, a new pool of dice are 'rolled' for each player, and a new turn begins.
+
+The first player to reduce the other player's HP to 0 is the winner.
+
+Bugs to Fix:
+
+-When a player is wounded, it prints the is_wounded line before printing the line that shows the other player dealing damage. Not game-breaking, but aesthetically suboptimal.
+
+-Try to get remaining player dice dynamically adjusted mid-turn in the instance where a player is wounded by a strike if they have any 3s currently in their pool.
