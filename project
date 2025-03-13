@@ -1,0 +1,189 @@
+import random
+import pyfiglet
+
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.hp = 14
+        self.dice_rolls = []
+        self.wounded_message_shown = False  # Track if wounded message has been printed.
+
+    @property
+    def is_wounded(self):
+        return self.hp <= 7
+
+    def get_successful_dice(self):
+        # Retain successful dice taking into account a player's 'wounded' status.
+        if self.is_wounded:
+            # If wounded, only keep dice with a value of 4 or higher.
+            self.dice_rolls = [die for die in self.dice_rolls if die >= 4]
+        else:
+            # If not wounded, keep dice with a value of 3 or higher.
+            self.dice_rolls = [die for die in self.dice_rolls if die >= 3]
+        return self.dice_rolls
+
+    def reduce_hp(self, damage):
+        # Reduce the player's HP based on damage of a strike.
+        self.hp -= damage
+        if self.hp <= 7 and not self.wounded_message_shown:
+            self.wounded_message_shown = True
+            print(f'{self.name} is wounded! Only dice with a value of 4 or higher will count as a success for that player.')
+            self.dice_rolls = self.get_successful_dice()
+            #print(f"Updated dice rolls for {self.name}: {self.dice_rolls}")
+
+
+    def block_action(self, select_die, block_die, opponent_player):
+        # Block opponent dice based on blocking criteria.
+        if select_die >= 3 and block_die < 6:
+            print(f'{self.name} blocks {opponent_player.name}\'s die!')
+            return True
+        if select_die == 6 and block_die == 6:
+            print(f'{self.name} blocks {opponent_player.name}\'s critical die!')
+            return True
+        print('Invalid input.')
+        return False
+
+
+def print_dice(values):
+    # Convert to a list.
+    if isinstance(values, int):
+        values = [values]
+
+    # Create the parts of each die (top, middle, and bottom).
+    top = ' '.join([f'+---+' for _ in values])
+    middle = ' '.join([f'| {value} |' for value in values])
+    bottom = ' '.join([f'+---+' for _ in values])
+
+    # Combine them to form the horizontal layout.
+    return f"{top}\n{middle}\n{bottom}"
+
+def roll_dice(player):
+    # Randomly roll 3 dice for the player.
+    player.dice_rolls = [random.randint(1, 6) for _ in range(3)]
+    # Filter dice based on whether the player is wounded.
+    player.dice_rolls = player.get_successful_dice()
+
+    # Display the dice roll.
+    print(f"\n{player.name}'s Dice: ")
+    print(print_dice(player.dice_rolls))
+
+def switch_turn(initiative):
+    # Switch initiative back and forth during the turn.
+    return 2 if initiative == 1 else 1
+
+def resolve_turn(current_player, opponent_player, remaining_player_dice, remaining_opponent_dice, initiative):
+    # Display current player's name and their available dice.
+    print(f"{current_player.name}'s turn.")
+    # Receive input from the user to select one of their dice to use.
+    select_die = get_valid_input(f'Select from your available dice {remaining_player_dice}: ', remaining_player_dice)
+    action = input("Do you want to 'strike' or 'block'? ").lower()
+
+    # Apply damage to opponent player using the 'strike action', taking into account critical damage.
+    if action == 'strike':
+        damage = 3 if select_die < 6 else 4
+        print(f'{current_player.name} strike for {damage} damage!')
+        opponent_player.reduce_hp(damage)
+        # Remove the used die from the active player's available dice.
+        remaining_player_dice.remove(select_die)
+
+        # Update the dice pool after HP reduction.
+        remaining_player_dice = current_player.get_successful_dice()
+        remaining_opponent_dice = opponent_player.get_successful_dice()
+
+
+        #  Display the opponent player's remaining HP.
+        if opponent_player.hp <= 0:
+            # If a player is defeated, declare that they have no HP, not a negative value.
+            print(f'{opponent_player.name} has no HP remaining.')
+            return True
+        else:
+            # Show how much damage is dealt to a player and how much HP they have remaining.
+            print(f'{opponent_player.name} has {opponent_player.hp} HP remaining.')
+            return True
+
+    # Resolve a 'block action.'
+    elif action == 'block':
+        block_die = get_valid_input(f"Select one of {opponent_player.name}'s dice to block {remaining_opponent_dice}: ", remaining_opponent_dice)
+        if current_player.block_action(select_die, block_die, opponent_player):
+            # Remove both the die from the active player's dice and the 'blocked' die from their opponent's dice.
+            remaining_opponent_dice.remove(block_die)
+            remaining_player_dice.remove(select_die)
+            return True
+        return False
+
+    else:
+        print("Invalid input. Please select 'strike' or 'block'.")
+        return False
+
+# Catch invalid input errors and re-prompt the user.
+def get_valid_input(prompt, valid_choices):
+    while True:
+        try:
+            choice = int(input(prompt))
+            if choice in valid_choices:
+                return choice
+            print("Invalid choice. Try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def main():
+    # Create two players and initialize the game.
+    player1 = Player("Player 1")
+    player2 = Player("Player 2")
+
+    ascii_art = pyfiglet.figlet_format('KILL TEAM\nDice Combat', font='slant')
+    print(ascii_art)
+    print(f'Player 1 HP: {player1.hp} | Player 2 HP: {player2.hp}')
+
+    #Randomly determine which player will take the first action each turn.
+    initiative = random.choice([1, 2])
+    while player1.hp > 0 and player2.hp > 0:
+        print(f'\nPlayer {initiative} has the initiative this turn!')
+        roll_dice(player1)
+        roll_dice(player2)
+
+        # Retain any successful dice for each player at the beginning of the turn.
+        remaining_player1_dice = player1.get_successful_dice()
+        remaining_player2_dice = player2.get_successful_dice()
+
+        while remaining_player1_dice or remaining_player2_dice:
+            if initiative == 1:
+                current_player, opponent_player = player1, player2
+                remaining_player_dice, remaining_opponent_dice = remaining_player1_dice, remaining_player2_dice
+            else:
+                current_player, opponent_player = player2, player1
+                remaining_player_dice, remaining_opponent_dice = remaining_player2_dice, remaining_player1_dice
+
+            if not remaining_player_dice:
+                print(f"{current_player.name} has no more dice!")
+                initiative = switch_turn(initiative)  # Switch turn if player has no dice
+                continue
+
+            # Continue the turn until both players have used all their available dice.
+            if not resolve_turn(current_player, opponent_player, remaining_player_dice, remaining_opponent_dice, initiative):
+                continue
+
+            # End the game when a player is reduced to 0 HP.
+            if player1.hp <= 0:
+                print(f'{player1.name} has been defeated! {player2.name} wins!')
+                return
+            elif player2.hp <= 0:
+                print(f'{player2.name} has been defeated! {player1.name} wins!')
+                return
+
+            remaining_player_dice = current_player.get_successful_dice()
+            remaining_opponent_dice = opponent_player.get_successful_dice()
+
+            # Switch player after each action.
+            initiative = switch_turn(initiative)
+
+        # After all dice have been used, determine initiative.
+        initiative = switch_turn(initiative)
+
+    if player1.hp <= 0:
+        print(f'{player1.name} has been defeated! {player2.name} wins!')
+    elif player2.hp <= 0:
+        print(f'{player2.name} has been defeated! {player1.name} wins!')
+
+if __name__ == "__main__":
+    main()
